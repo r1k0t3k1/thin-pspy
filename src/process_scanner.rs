@@ -2,6 +2,7 @@ use std::{ fs, fmt };
 use std::collections::HashMap;
 use regex::Regex;
 
+#[derive(Debug)]
 struct Process {
     pid: u32,
     euid: u32,
@@ -22,7 +23,7 @@ impl fmt::Display for Process {
 }
 
 pub struct ProcessScanner {
-    processes: HashMap<u32, (u32, String)>
+    processes: HashMap<u32, Process>
 }
 
 impl ProcessScanner {
@@ -31,7 +32,9 @@ impl ProcessScanner {
         let mut processes = HashMap::new();
 
         for p in pids {
-            processes.insert(p, ProcessScanner::get_process_metadata(p));
+            if let Some(process) = ProcessScanner::get_process_metadata(p) {
+                processes.insert(p, process);
+            }
         }
 
         ProcessScanner {
@@ -51,7 +54,7 @@ impl ProcessScanner {
         pids
     }
 
-    fn get_process_metadata(pid: u32) -> (u32, String) {
+    fn get_process_metadata(pid: u32) -> Option<Process> {
         let status = match std::fs::read_to_string(format!("{}{}{}", "/proc/", pid, "/status")) {
             Ok(s) => s,
             Err(_) => String::from("")
@@ -68,7 +71,11 @@ impl ProcessScanner {
             euid = caps["uid"].parse().unwrap();
         }
         
-        (euid, cmdline)
+        Some(Process {
+            pid,
+            euid,
+            cmdline,
+        })
     }
 
     pub fn refresh(&mut self) {
@@ -76,8 +83,10 @@ impl ProcessScanner {
 
         for p in pids {
             if let None = self.processes.get(&p) {
-                self.processes.insert(p, ProcessScanner::get_process_metadata(p));
-                println!("{:?}", self.processes.get(&p));
+                if let Some(process) = ProcessScanner::get_process_metadata(p) {
+                    self.processes.insert(p, process);
+                    println!("{}", self.processes.get(&p).unwrap());
+                }
             }
         }
         
@@ -86,13 +95,13 @@ impl ProcessScanner {
 
 impl fmt::Display for ProcessScanner {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for (pid, metadata) in self.processes.iter() {
+        for (pid, process) in self.processes.iter() {
             write!(
                 f,
                 "PID: {0: <6} | EUID: {1: <6} | cmd: {2: <10}\n",
                 pid,
-                metadata.0,
-                metadata.1,
+                process.euid,
+                process.cmdline,
             );
         }
         Ok(())
