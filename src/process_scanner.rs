@@ -2,6 +2,25 @@ use std::{ fs, fmt };
 use std::collections::HashMap;
 use regex::Regex;
 
+struct Process {
+    pid: u32,
+    euid: u32,
+    cmdline: String,
+}
+
+impl fmt::Display for Process {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "PID: {0: <6} | EUID: {1: <6} | cmd: {2: <10}\n",
+            self.pid,
+            self.euid,
+            self.cmdline,
+        );
+        Ok(())
+    }
+}
+
 pub struct ProcessScanner {
     processes: HashMap<u32, (u32, String)>
 }
@@ -12,15 +31,7 @@ impl ProcessScanner {
         let mut processes = HashMap::new();
 
         for p in pids {
-            let status = std::fs::read_to_string(format!("{}{}{}", "/proc/", p, "/status")).unwrap();
-            let re = Regex::new(r"Uid:\t\d+\t\d+\t(?P<uid>\d+)").unwrap();
-            let mut euid: u32 = 0;
-            for caps in re.captures_iter(&status) {
-                euid = caps["uid"].parse().unwrap();
-            }
-            let mut cmdline = std::fs::read_to_string(format!("{}{}{}", "/proc/", p, "/cmdline")).unwrap();
-            cmdline = cmdline.trim().replace("\0", " ");
-            processes.insert(p, (euid, cmdline));
+            processes.insert(p, ProcessScanner::get_process_metadata(p));
         }
 
         ProcessScanner {
@@ -38,6 +49,38 @@ impl ProcessScanner {
             }
         }
         pids
+    }
+
+    fn get_process_metadata(pid: u32) -> (u32, String) {
+        let status = match std::fs::read_to_string(format!("{}{}{}", "/proc/", pid, "/status")) {
+            Ok(s) => s,
+            Err(_) => String::from("")
+        };
+
+        let mut cmdline = match std::fs::read_to_string(format!("{}{}{}", "/proc/", pid, "/cmdline")) {
+            Ok(c) => c.trim().replace("\0", " "),
+            Err(_) => String::from("???")
+        };
+
+        let re = Regex::new(r"Uid:\t\d+\t\d+\t(?P<uid>\d+)").unwrap();
+        let mut euid: u32 = 0;
+        for caps in re.captures_iter(&status) {
+            euid = caps["uid"].parse().unwrap();
+        }
+        
+        (euid, cmdline)
+    }
+
+    pub fn refresh(&mut self) {
+        let pids = ProcessScanner::get_pids();
+
+        for p in pids {
+            if let None = self.processes.get(&p) {
+                self.processes.insert(p, ProcessScanner::get_process_metadata(p));
+                println!("{:?}", self.processes.get(&p));
+            }
+        }
+        
     }
 }
 

@@ -1,12 +1,16 @@
 use std::path::Path;
 use std::io::Error;
 use std::ffi::CString;
+use std::sync::mpsc;
+use std::sync::mpsc::Sender;
+use std::thread;
 
 use crate::inotify_api;
 
+#[derive(Clone)]
 pub struct FileSystemWatcher {
     // TODO
-    // MaybeUninit i32 fd
+    fd: i32,
     max_user_watches: u32,
     pub root_directories: Vec<String>,
     pub watch_directories: Vec<String>,
@@ -20,9 +24,10 @@ impl FileSystemWatcher {
            .parse::<u32>()
            .unwrap();
        FileSystemWatcher {
-            max_user_watches,
-            root_directories: vec![],
-            watch_directories: vec![],
+           fd: 0,
+           max_user_watches,
+           root_directories: vec![],
+           watch_directories: vec![],
        }
     }
 
@@ -39,12 +44,13 @@ impl FileSystemWatcher {
         self.watch_directories.sort();
     }
 
-    pub fn add_watch(&mut self) -> i32 {
+    pub fn add_watch(&mut self) {
         let fd = unsafe { inotify_api::inotify_init1(inotify_api::IN_CLOEXEC) };
         if fd == -1 {
             eprintln!("failed in inotify_init1. fd = {}, last OS Error = {}", fd, Error::last_os_error());
             std::process::exit(1);
         }
+        self.fd = fd;
 
         for d in &self.watch_directories {
             let watch_fd = unsafe {
@@ -64,7 +70,26 @@ impl FileSystemWatcher {
             }
     
         }
-        fd
+    }
+
+    pub fn observe(fsw: Self, sender: Sender<()>) {
+        let fd = fsw.fd;
+        let t = thread::spawn(move|| {
+            loop {
+                let mut buf = [0_u8;1024];
+                let len = unsafe { inotify_api::read(fd, buf.as_mut_ptr() as *mut u8, buf.len()) };
+                // inotify_init1でIN_NON_BLOCKを渡しているため即EAGAINが返る。
+                if len == -1 {
+                    if let Some(err) = Error::last_os_error().raw_os_error() {
+                        if err == 22 {
+                            println!("{}", Error::last_os_error());
+                        }
+                    };
+                    continue;
+                }
+                sender.send(()).unwrap();
+            }
+        });
     }
 }
 
