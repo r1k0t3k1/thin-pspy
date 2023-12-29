@@ -13,7 +13,7 @@ impl fmt::Display for Process {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "PID: {0: <6} | EUID: {1: <6} | cmd: {2: <10}\n",
+            "PID: {0: <6} | EUID: {1: <6} | cmd: {2: <10}",
             self.pid,
             self.euid,
             self.cmdline,
@@ -61,7 +61,7 @@ impl ProcessScanner {
         };
 
         let mut cmdline = match std::fs::read_to_string(format!("{}{}{}", "/proc/", pid, "/cmdline")) {
-            Ok(c) => c.trim().replace("\0", " "),
+            Ok(c) => c.trim().replace("\0", " ").replace("\n", "").replace("\r", ""),
             Err(_) => String::from("???")
         };
 
@@ -96,13 +96,7 @@ impl ProcessScanner {
 impl fmt::Display for ProcessScanner {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for (pid, process) in self.processes.iter() {
-            write!(
-                f,
-                "PID: {0: <6} | EUID: {1: <6} | cmd: {2: <10}\n",
-                pid,
-                process.euid,
-                process.cmdline,
-            );
+            write!(f, "{}\n", process);
         }
         Ok(())
     }

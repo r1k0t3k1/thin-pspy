@@ -73,11 +73,10 @@ impl FileSystemWatcher {
     }
 
     pub fn observe(fsw: Self, sender: Sender<()>) {
-        let fd = fsw.fd;
-        let t = thread::spawn(move|| {
+        thread::spawn(move|| {
             loop {
                 let mut buf = [0_u8;1024];
-                let len = unsafe { inotify_api::read(fd, buf.as_mut_ptr() as *mut u8, buf.len()) };
+                let len = unsafe { inotify_api::read(fsw.fd, buf.as_mut_ptr() as *mut u8, buf.len()) };
                 // inotify_init1でIN_NON_BLOCKを渡しているため即EAGAINが返る。
                 if len == -1 {
                     if let Some(err) = Error::last_os_error().raw_os_error() {

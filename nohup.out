@@ -1,0 +1,18 @@
+flameshot: info: Capture saved to clipboard.
+QPainter::begin: Paint device returned engine == 0, type: 2
+QPainter::setRenderHint: Painter must be active to set rendering hints
+QPainter::setCompositionMode: Painter not active
+QPainter::translate: Painter not active
+QPainter::setPen: Painter not active
+QPainter::setBrush: Painter not active
+QPainter::setBrush: Painter not active
+flameshot: info: Capture saved to clipboard.
+QPainter::begin: Paint device returned engine == 0, type: 2
+QPainter::setRenderHint: Painter must be active to set rendering hints
+QPainter::setCompositionMode: Painter not active
+QPainter::translate: Painter not active
+QPainter::setPen: Painter not active
+QPainter::setBrush: Painter not active
+QPainter::setBrush: Painter not active
+flameshot: info: Capture saved to clipboard.
+ICE default IO error handler doing an exit(), pid = 10898, errno = 11

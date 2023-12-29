@@ -17,11 +17,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("{}", processes);
 
     let mut fsw = FileSystemWatcher::new();
-    fsw.walk_directories(vec![String::from("/opt")]);
+    fsw.walk_directories(vec![String::from("/opt"), String::from("/usr")]);
     fsw.add_watch();
-    
+
     let (tx,rx): (Sender<()>, Receiver<()>) = mpsc::channel();
-    FileSystemWatcher::observe(fsw,tx);
+    
+    FileSystemWatcher::observe(fsw, tx);
 
     loop {
         rx.recv();
